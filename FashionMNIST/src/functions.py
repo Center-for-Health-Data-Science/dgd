@@ -66,7 +66,7 @@ def train(model,gmm,rep,test_rep,data,testdata,latent,
     optim_beta=[0.5,0.7],wd=1e-4,nepochs=500,
     lr_schedule_epochs=[0],lr_schedule=[[1e-3,1e-2,1e-1]],start_epoch=0,
     input_dims=28*28,model_type='dgd',supervision_labels=None,
-    export_dir=None,export_name=None,rep_optimizer=None,testrep_optimizer=None,save_stuff=True):
+    export_dir=None,export_name=None,save_stuff=True):
 
     nsample = data.dataset.__len__()
     nsample_test = testdata.dataset.__len__()
@@ -80,17 +80,19 @@ def train(model,gmm,rep,test_rep,data,testdata,latent,
         gmm = gmm.to(device)
         if gmm.mean.requires_grad:
             train_gmm = True
+            lr_gmm = lr_schedule[0][2]
             gmm_optimizer = torch.optim.Adam(gmm.parameters(), lr=lr_gmm, weight_decay=wd,betas=(optim_beta[0],optim_beta[1]))
         else:
             train_gmm = False
     else:
         train_gmm = False
+    
     lr_decoder = lr_schedule[0][0]
-    lr_rep = lr_schedule[0][1]
-    lr_gmm = lr_schedule[0][2]
     model_optimizer = torch.optim.Adam(model.parameters(), lr=lr_decoder, weight_decay=wd,betas=(optim_beta[0],optim_beta[1]))
-    rep_optimizer = torch.optim.Adam(rep.parameters(), lr=dgd_hypers['learning_rates'][0][2], weight_decay=dgd_hypers['weight_decay'],betas=(dgd_hypers['optim_beta'][0],dgd_hypers['optim_beta'][1]))
-    testrep_optimizer = torch.optim.Adam(test_rep.parameters(), lr=dgd_hypers['learning_rates'][0][2], weight_decay=dgd_hypers['weight_decay'],betas=(dgd_hypers['optim_beta'][0],dgd_hypers['optim_beta'][1]))
+    if model_type != 'vae':
+        lr_rep = lr_schedule[0][1]
+        rep_optimizer = torch.optim.Adam(rep.parameters(), lr=lr_rep, weight_decay=wd,betas=(optim_beta[0],optim_beta[1]))
+        testrep_optimizer = torch.optim.Adam(test_rep.parameters(), lr=lr_rep, weight_decay=wd,betas=(optim_beta[0],optim_beta[1]))
 
     criterion = nn.BCELoss(reduction='sum')
     
@@ -279,3 +281,16 @@ def train(model,gmm,rep,test_rep,data,testdata,latent,
         history.to_csv(export_dir+export_name+'/'+export_name+'_history.csv')
     
     return history, model, gmm, rep, test_rep
+
+def supervision_list(t_set, ratio, classes):
+    step = int(1 / ratio)
+    labels = [classes[x[1]] for x in t_set.data]
+    unique_classes = list(set(labels))
+    id_position_out = np.zeros(len(labels))
+    for lbl in unique_classes:
+        ids = [x for x in range(len(labels)) if labels[x] == lbl]
+        keep = [ids[x] for x in range(len(ids)) if x % step == 0]
+        id_position_out[keep] = 1
+    out = np.full(shape=(t_set.__len__()),fill_value=999)
+    out[np.where(id_position_out == 1)[0]] = t_set.data.targets[np.where(id_position_out == 1)[0]]
+    return out

@@ -110,7 +110,7 @@ class PixelCNN(nn.Module):
 
 class FmnistDGD(nn.Module):
     def __init__(self, latent=50, hidden=True, hidden_dim=256, capacity=64, activ='relu', pixel=True,
-    skip = False, dropout=0, pixel_layers=(5), pixel_kernels=(5)):
+    skip = True, dropout=0, pixel_layers=(5), pixel_kernels=(5)):
         super(FmnistDGD, self).__init__()
 
         self.latent = latent

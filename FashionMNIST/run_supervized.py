@@ -2,11 +2,11 @@ import torch
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-from DGD.Prior import GaussianMixture, softball
+from DGD.Prior import GaussianMixtureSupervised, softball
 from DGD.Representation import RepresentationLayer
 from src.model import FmnistDGD
 from src.functions import FashionMNIST_Dataset, SingleGaussian
-from src.functions import set_random_seed, train
+from src.functions import set_random_seed, train, supervision_list
 
 ############################
 # get the data and prepare loaders
@@ -49,19 +49,19 @@ dgd_hypers = {
     'weight_decay': 1e-4, # default
     'dropout': 0.1, # default
     'gmm_type': 'diagonal',
-    'n_gc': 20,
+    'n_gc': 10,
     'activ': 'silu',
     'block_type': 'simple',
     'rep_init': 'zero',
     'mean_prior': 'Softball',
     'mean_a': 10,
     'mean_b': 2,
-    'sd_mean': 0.15,
+    'sd_mean': 0.2,
     'sd_sd': 1,
-    'dirichlet_a': 2,
+    'dirichlet_a': 5,
 }
 
-model_name = 'dgd_fmnist'
+model_name = 'dgd_fmnist_supervized'
 
 ############################
 # initialize model
@@ -79,10 +79,10 @@ test_representation = RepresentationLayer(dgd_hypers['latent'],
     testloader.dataset.__len__(),
     values=torch.zeros(size=(testloader.dataset.__len__(),dgd_hypers['latent'])))
 
+supervision_labels = supervision_list(trainset, 1, classes)
 mean_prior = softball(dgd_hypers['latent'],dgd_hypers['mean_b'],dgd_hypers['mean_a'])
-gmm = GaussianMixture(Nmix=dgd_hypers['n_gc'], dim=dgd_hypers['latent'], 
-    type=dgd_hypers['gmm_type'], mean_prior=mean_prior, 
-    sd_init=(dgd_hypers['sd_mean'],dgd_hypers['sd_sd']), alpha=dgd_hypers['dirichlet_a'])
+gmm = GaussianMixtureSupervised(Nclass=10, dim=dgd_hypers['latent'], type=dgd_hypers['gmm_type'],
+        mean_prior=mean_prior,sd_init=(dgd_hypers['sd_mean'],dgd_hypers['sd_sd']), alpha=dgd_hypers['dirichlet_a'])
 
 ############################
 # train
@@ -90,4 +90,5 @@ gmm = GaussianMixture(Nmix=dgd_hypers['n_gc'], dim=dgd_hypers['latent'],
 
 train(model=decoder, gmm=gmm, rep=representation, test_rep=test_representation,
     data=trainloader,testdata=testloader,latent=dgd_hypers['latent'],
-    export_dir=save_dir,export_name=model_name)
+    export_dir=save_dir,export_name=model_name,
+    supervision_labels=supervision_labels)

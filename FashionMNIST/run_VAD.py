@@ -2,11 +2,11 @@ import torch
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-from DGD.Prior import GaussianMixture, softball
 from DGD.Representation import RepresentationLayer
 from src.model import FmnistDGD
 from src.functions import FashionMNIST_Dataset, SingleGaussian
 from src.functions import set_random_seed, train
+from src.functions_classes_VI import VAE_Representation
 
 ############################
 # get the data and prepare loaders
@@ -35,33 +35,27 @@ nepochs = 500 # default
 save_dir = './results/paper_experiments/'
 
 dgd_hypers = {
-    'capacity': 64,
+    'capacity': 32,
     'skip': True,
     'pixel': True,
     'pixel_specs': [(5),(5)],
-    'latent': 20, # default
+    'latent': 100, # default
     'hidden': True,
-    'hidden_dim': 200,
-    'learning_rates': [[1e-3,1e-2,1e-1]], # default
+    'hidden_dim': 100,
+    'learning_rates': [[1e-3,1e-3]], # default
     'lr_schedule': [0], # default
-    'lr_name': '321',
+    'lr_name': '33',
     'optim_beta': [0.5,0.7], # default
     'weight_decay': 1e-4, # default
     'dropout': 0.1, # default
     'gmm_type': 'diagonal',
-    'n_gc': 20,
+    'n_gc': 0,
     'activ': 'silu',
     'block_type': 'simple',
-    'rep_init': 'zero',
-    'mean_prior': 'Softball',
-    'mean_a': 10,
-    'mean_b': 2,
-    'sd_mean': 0.15,
-    'sd_sd': 1,
-    'dirichlet_a': 2,
+    'rep_init': 'zero'
 }
 
-model_name = 'dgd_fmnist'
+model_name = 'vad_fmnist'
 
 ############################
 # initialize model
@@ -72,17 +66,14 @@ decoder = FmnistDGD(latent=dgd_hypers['latent'], hidden=dgd_hypers['hidden'],
     pixel=dgd_hypers['pixel'], skip = dgd_hypers['skip'], dropout=dgd_hypers['dropout'], 
     pixel_layers=dgd_hypers['pixel_specs'][0],pixel_kernels=dgd_hypers['pixel_specs'][1])
 
-representation = RepresentationLayer(dgd_hypers['latent'],
-    trainloader.dataset.__len__(),
+representation = VAE_Representation(nrep=dgd_hypers['latent'],
+    nsample=trainloader.dataset.__len__(),
     values=torch.zeros(size=(trainloader.dataset.__len__(),dgd_hypers['latent'])))
-test_representation = RepresentationLayer(dgd_hypers['latent'],
-    testloader.dataset.__len__(),
+test_representation = VAE_Representation(nrep=dgd_hypers['latent'],
+    nsample=testloader.dataset.__len__(),
     values=torch.zeros(size=(testloader.dataset.__len__(),dgd_hypers['latent'])))
 
-mean_prior = softball(dgd_hypers['latent'],dgd_hypers['mean_b'],dgd_hypers['mean_a'])
-gmm = GaussianMixture(Nmix=dgd_hypers['n_gc'], dim=dgd_hypers['latent'], 
-    type=dgd_hypers['gmm_type'], mean_prior=mean_prior, 
-    sd_init=(dgd_hypers['sd_mean'],dgd_hypers['sd_sd']), alpha=dgd_hypers['dirichlet_a'])
+gmm = SingleGaussian(dim=dgd_hypers['latent'])
 
 ############################
 # train
@@ -90,4 +81,5 @@ gmm = GaussianMixture(Nmix=dgd_hypers['n_gc'], dim=dgd_hypers['latent'],
 
 train(model=decoder, gmm=gmm, rep=representation, test_rep=test_representation,
     data=trainloader,testdata=testloader,latent=dgd_hypers['latent'],
-    export_dir=save_dir,export_name=model_name)
+    export_dir=save_dir,export_name=model_name,
+    model_type='vad')
