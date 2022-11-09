@@ -1,11 +1,11 @@
-# DGD_paper
+# The Deep Generative Decoder
 
 DGD is a package for probabilistic representation learning. It can be applied to various tasks. The implementation for Fashion-MNIST and single-cell expression counts can be found in branch ```paper```.
 
 ## Installation
 
 ```
-pip install git+https://github.com/Center-for-Health-Data-Science/DGD_paper/tree/main.git
+pip install git+https://github.com/Center-for-Health-Data-Science/dgd/tree/main.git
 ```
 
 ## Reference
