@@ -5,7 +5,7 @@ DGD is a package for probabilistic representation learning. It can be applied to
 ## Installation
 
 ```
-pip install git+https://github.com/Center-for-Health-Data-Science/dgd/tree/main.git
+pip install git+https://github.com/Center-for-Health-Data-Science/dgd
 ```
 
 ## Reference
